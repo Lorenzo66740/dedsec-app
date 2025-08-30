@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DedSec CTOS Simulator Ultra Realistic</title>
+<style>
+/* --- Styles globaux --- */
+body { margin:0; font-family:'Consolas', monospace; background:black; color:#00ff00; overflow-x:hidden; touch-action: manipulation; }
+#dedsecFixedIcon { position: fixed; top: 10px; left: 10px; font-size: 40px; z-index: 300; animation: dedsecGlitch 0.25s infinite, dedsecBlink 1s infinite; pointer-events: none; }
+@keyframes dedsecGlitch {0% { transform: translate(0,0); color: #0f0; } 20% { transform: translate(2px,-2px); color: lime; } 40% { transform: translate(-2px,2px); color: #00ff00; } 60% { transform: translate(2px,2px); color: limegreen; } 80% { transform: translate(-2px,-2px); color: #0f0; } 100% { transform: translate(0,0); color: #0f0; }}
+@keyframes dedsecBlink {0%,50%,100% { opacity:1; } 25%,75% { opacity:0.5; }}
+
+/* --- Splash screen --- */
+#splash { position:fixed; top:0; left:0; right:0; bottom:0; background:black; z-index:100; display:flex; flex-direction:column; justify-content:center; align-items:center; overflow:hidden; }
+#splash .glitch { font-size:3em; animation: glitch 0.15s infinite; margin-bottom:15px; text-shadow:0 0 5px #0f0,0 0 10px lime,0 0 20px #0f0;}
+@keyframes glitch {0%{color:#0f0;transform:translate(0,0);}20%{color:lime;transform:translate(2px,-2px);}40%{color:#00ff00;transform:translate(-2px,2px);}60%{color:#0f0;transform:translate(2px,2px);}80%{color:lime;transform:translate(-2px,-2px);}100%{color:#0f0;transform:translate(0,0);}}
+#loadingTerminal { width:90%; max-width:400px; height:180px; border:1px solid #0f0; background:black; overflow:hidden; padding:10px; box-sizing:border-box; font-size:0.85em; line-height:1.2em; }
+
+/* --- App main --- */
+#app { display:none; padding:10px; }
+.grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); grid-gap:12px; margin-top:10px; }
+.btn { background:rgba(0,0,0,0.85); border:1px solid #0f0; border-radius:12px; padding:18px; text-align:center; cursor:pointer; font-size:1.1em; user-select:none; transition: all 0.2s; position:relative; overflow:hidden;}
+.btn:hover { background:rgba(0,255,0,0.2); }
+.btn.active { background:#00ff00; color:black; transform:scale(1.05); animation: btnFlash 0.15s infinite alternate;}
+@keyframes btnFlash {0%{background:#0f0;}50%{background:lime;}100%{background:#0f0;}}
+
+/* --- Modal --- */
+.window { position: fixed; top:50%; left:50%; transform:translate(-50%,-50%) scale(0.8); background:black; border:2px solid #0f0; padding:20px; z-index:50; display:none; min-width:220px; max-width:90%; box-shadow:0 0 15px #0f0; opacity:0; transition: all 0.3s;}
+.window.show { display:block; opacity:1; transform:translate(-50%,-50%) scale(1);}
+.closeBtn { position:absolute; top:5px; right:5px; cursor:pointer; color:#0f0; font-weight:bold; font-size:1.2em; }
+
+/* --- Logs --- */
+#log { margin-top:15px; max-height:180px; overflow-y:auto; border-top:1px solid #0f0; padding-top:10px; font-size:0.85em; }
+.terminalLine { color:#0f0; }
+
+/* --- Progress bar --- */
+.progressBar { width:100%; height:12px; border:1px solid #0f0; background:black; border-radius:6px; overflow:hidden; margin-top:10px; }
+.progressBar #progress { width:0%; height:100%; background:lime; transition:width 0.15s; animation:progressGlitch 0.25s infinite; }
+@keyframes progressGlitch {0%{transform:translateX(0);}25%{transform:translateX(2px);}50%{transform:translateX(-2px);}75%{transform:translateX(2px);}100%{transform:translateX(0);}}
+
+#blackout { position:fixed; top:0; left:0; right:0; bottom:0; background:black; opacity:0; pointer-events:none; z-index:200; transition:opacity 0.05s; }
+</style>
+</head>
+<body>
+
+<div id="dedsecFixedIcon">🕶️</div>
+
+<div id="splash">
+    <div class="glitch">DEDSEC CTOS SYSTEM</div>
+    <div>Initializing...</div>
+    <div id="loadingTerminal"></div>
+</div>
+
+<div id="app">
+    <div class="grid">
+        <div class="btn" onclick="trigger('Blackout', this)">⚡ Blackout</div>
+        <div class="btn" onclick="trigger('Feux', this)">🚦 Feux</div>
+        <div class="btn" onclick="trigger('Porte', this)">🔓 Déverrouillage</div>
+        <div class="btn" onclick="trigger('Caméra', this)">🎥 Caméra</div>
+        <div class="btn" onclick="trigger('Backdoor', this)">🔐 Backdoor</div>
+        <div class="btn" onclick="trigger('Radar', this)">📡 Scan réseau</div>
+        <div class="btn" onclick="trigger('Analyse', this)">📊 Analyse réseau</div>
+        <div class="btn" onclick="trigger('Profiler', this)">🧾 Scan profiler</div>
+        <div class="btn" onclick="trigger('Data', this)">💾 Récupération</div>
+        <div class="btn" onclick="trigger('Brouillage', this)">📡 Brouillage</div>
+        <div class="btn" onclick="trigger('Carte', this)">🗺 Carte</div>
+        <div class="btn" onclick="trigger('Trace', this)">📍 Traceur IP/Appels</div>
+        <div class="btn" onclick="trigger('Bruteforce', this)">🔑 Bruteforce</div>
+    </div>
+    <div id="log"></div>
+</div>
+
+<div id="modal" class="window">
+    <div class="closeBtn" onclick="closeWindow()">×</div>
+    <div id="modalContent"></div>
+</div>
+
+<div id="blackout"></div>
+
+<!-- Sons Base64 placeholder -->
+<audio id="soundBlackout" src="data:audio/wav;base64,..."></audio>
+<audio id="soundUnlock" src="data:audio/wav;base64,..."></audio>
+<audio id="soundCamera" src="data:audio/wav;base64,..."></audio>
+<audio id="soundGlitch" src="data:audio/wav;base64,..."></audio>
+
+<script>
+// --- Splash terminal animation ---
+const splash=document.getElementById('splash');
+const terminal=document.getElementById('loadingTerminal');
+const app=document.getElementById('app');
+let lines=[];
+const chars="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+let splashInterval=setInterval(()=>{
+  if(lines.length<15){let line=''; for(let i=0;i<50;i++){line+=chars.charAt(Math.floor(Math.random()*chars.length));} lines.push(line);}
+  else{lines.shift(); lines.push('');}
+  terminal.innerHTML=lines.map(l=>`<div class="terminalLine">${l}</div>`).join('');
+},50);
+setTimeout(()=>{clearInterval(splashInterval); splash.style.display='none'; app.style.display='block'; addLog("Application démarrée");},4500);
+
+// --- Modal, log, blackout ---
+const modal=document.getElementById('modal'); 
+const modalContent=document.getElementById('modalContent'); 
+const logDiv=document.getElementById('log'); 
+const blackout=document.getElementById('blackout');
+
+function trigger(name, btn){
+  addLog(name+" activé"); 
+  btn.classList.add('active'); 
+  openWindow(name); 
+  if(name==='Blackout'){ blackoutEffect(); playSound('blackout'); } 
+  else if(name==='Porte'){ playSound('unlock'); } 
+  else if(name==='Caméra'){ playSound('camera'); } 
+  else if(name==='Backdoor'){ playSound('glitch'); } 
+  setTimeout(()=>{btn.classList.remove('active');},1200);
+}
+
+function openWindow(name){
+  modal.classList.add('show'); 
+  modalContent.innerHTML=`<b>${name}</b><br><div class="progressBar"><div id="progress"></div></div><br>Loading...`; 
+  const progressEl=document.getElementById('progress'); 
+  let progress=0; 
+  const interval=setInterval(()=>{
+    progress+=Math.random()*8;
+    if(progress>100) progress=100;
+    progressEl.style.width=progress+'%';
+    if(progress>=100){ 
+      clearInterval(interval); 
+      if(name==='Bruteforce'){ simulateBruteforce(); } 
+      else{ modalContent.innerHTML=`<b>${name}</b><br>Terminé ✅`; addLog(name+" terminé"); setTimeout(()=>{closeWindow();},900);} 
+    }
+  },150);
+}
+
+function closeWindow(){ modal.classList.remove('show'); }
+function addLog(text){ const time=new Date().toLocaleTimeString(); logDiv.innerHTML=`[${time}] ${text}<br>`+logDiv.innerHTML; }
+function blackoutEffect(){ let flashes=0; const interval=setInterval(()=>{ blackout.style.opacity=(blackout.style.opacity==0?1:0); flashes++; if(flashes>6) clearInterval(interval); },120);}
+function randomPassword(){ const chars="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*"; let pw=""; for(let i=0;i<8+Math.floor(Math.random()*5);i++){ pw+=chars.charAt(Math.floor(Math.random()*chars.length));} return pw;}
+function simulateBruteforce(){ let count=0; const interval=setInterval(()=>{ const pw=randomPassword(); modalContent.innerHTML=`<b>Bruteforce</b><br>${pw}`; count++; if(count>20){ clearInterval(interval); modalContent.innerHTML=`<b>Bruteforce</b><br>Succès !`; addLog("Bruteforce terminé"); setTimeout(()=>{closeWindow();},900);} },150);}
+function playSound(name){ let audio; switch(name){ case 'blackout': audio=document.getElementById('soundBlackout'); break; case 'unlock': audio=document.getElementById('soundUnlock'); break; case 'camera': audio=document.getElementById('soundCamera'); break; case 'glitch': audio=document.getElementById('soundGlitch'); break; default:return;} if(audio){ audio.currentTime=0; audio.play(); }}
+</script>
+
+</body>
+</html>
